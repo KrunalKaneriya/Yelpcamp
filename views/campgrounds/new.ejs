@@ -3,20 +3,23 @@
     <div class="row">
         <h1 class="text-center">New Campground</h1>
         <div class="col-6 offset-3">
-            <form action="/campgrounds" method="post">
+            <form action="/campgrounds" method="post" novalidate class="needs-validation">
                 <div class="mb-3 mt-4">
                     <label for="title" class="form-label">Title</label>
-                    <input type="text" id="title" name="campground[title]" class="form-control">
+                    <input type="text" id="title" name="campground[title]" class="form-control" required>
+                    <div class="valid-feedback">Looks Good!!</div>
                 </div>
                 <div class="mb-1">
                     <label for="location" class="form-label">Location</label>
-                    <input type="text" name="campground[location]" id="location" class="form-control">
+                    <input type="text" name="campground[location]" id="location" class="form-control" required>
+                    <div class="valid-feedback">Looks Good!!</div>
                 </div>
 
                 <div class="mb-3 mt-3">
                     <label for="image" class="form-label">Image</label>
                     <input type="text" id="image" name="campground[image]" class="form-control"
-                        placeholder="Paste Image Url">
+                        placeholder="Paste Image Url" required>
+                    <div class="valid-feedback">Looks Good!!</div>
 
                 </div>
 
@@ -26,15 +29,17 @@
                     <div class="input-group">
                         <span class="input-group-text" id="basic-addon1">$</span>
                         <input type="text" class="form-control" placeholder="0.00" aria-label="Price"
-                            aria-describedby="Enter Price" id="price" name="campground[price]">
+                            aria-describedby="Enter Price" id="price" name="campground[price]" required>
+                        <div class="valid-feedback">Looks Good!!</div>
                     </div>
                 </div>
 
 
                 <div class="mb-3 mt-3">
                     <label for="description" class="form-label">Description</label>
-                    <textarea class="form-control" name="campground[description]" id="description" cols="20"
-                        rows="5"></textarea>
+                    <textarea class="form-control" name="campground[description]" id="description" cols="20" rows="5"
+                        required></textarea>
+                    <div class="valid-feedback">Looks Good!!</div>
 
                 </div>
 
@@ -47,3 +52,6 @@
         </div>
 
     </div>
+
+
+   

@@ -1,8 +1,10 @@
 <% layout("layouts/boilerplate") %>
 
 
+    
+
     <div class="row mb-4">
-        <div class="col-6 offset-3">
+        <div class="col-6">
             <div class="card">
                 <img src="<%= campground.image %>" class="card-img-top" alt="...">
                 <div class="card-body">
@@ -10,11 +12,13 @@
                         <%= campground.title %>
                     </h5>
                     <p class="card-text">
-                        <%= campground.description %> 
+                        <%= campground.description %>
                     </p>
                 </div>
                 <ul class="list-group list-group-flush">
-                    <li class="list-group-item text-muted"><%= campground.location %> </li>
+                    <li class="list-group-item text-muted">
+                        <%= campground.location %>
+                    </li>
                     <li class="list-group-item">$<%= campground.price %>/night </li>
                 </ul>
                 <div class="card-body">
@@ -25,5 +29,42 @@
                     <a href="/campgrounds" class="btn btn-dark px-4">All Campgrounds</a>
                 </div>
             </div>
+
+
+
+        </div>
+
+        <div class="col-6">
+            <h2 class="display-5 mt-4 mb-4">Leave A Review</h2>
+            <form action="/campgrounds/<%= campground._id %>/reviews" method="POST" novalidate class="needs-validation">
+                <div class="mb-3 mt-3">
+                    <label for="rating" class="form-label">Rating</label>
+                    <input type="range" name="review[rating]" id="rating" min="1" max="5" step="1" class="form-range">
+                </div>
+                <div class="mb-3 mt-3">
+                    <label class="form-label" for="body">Review</label>
+                    <textarea name="review[body]" id="body" cols="30" rows="5" class="form-control" required></textarea>
+                    <div class="valid-feedback">
+                        Looks Good!!
+                    </div>
+                </div>
+
+                <button class="btn btn-success">Add Review</button>
+            </form>
+
+            <% for(let review of campground.reviews) { %>
+                <div class="card mt-3">
+                    <div class="card-body">
+                        <h5 class="mb-3 card-text">Rating: <%= review.rating %>
+                        </h5>
+                        <p class="card-title">Review: <%= review.body %>
+                        </p>
+                        <form action="/campgrounds/<%= campground._id%>/reviews/<%= review._id %>?_method=DELETE"
+                            method="post">
+                            <button class="btn btn-sm btn-danger">Delete Review</button>
+                        </form>
+                    </div>
+                </div>
+                <% } %>
         </div>
     </div>

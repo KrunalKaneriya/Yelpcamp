@@ -2,20 +2,91 @@ const express = require("express");
 const ejsMate = require("ejs-mate");
 const path = require("path");
 const app = express();
+const Joi = require("joi");
 const mongoose = require("mongoose");
 const Campground = require("./models/campground");
 const methodOverride = require("method-override");
-
+const wrapAsync = require("./utilities/wrapAsync")
+const ExpressError = require("./utilities/ExpressError");
 const campground = require("./models/campground");
+const { campgroundValidateSchema, reviewSchema } = require("./models/validateSchema");
+const Review = require("./models/review");
+const campgrounds = require("./routes/campground");
+const reviews = require("./routes/review");
+const session = require("express-session");
+const flash = require("connect-flash");
 
 
+app.set("view engine", "ejs");
+app.set("views", path.join(__dirname, "views"));
 
-app.set("view engine","ejs");
-app.set("views",path.join(__dirname,"views"));
-
+app.use(flash());
 app.use(methodOverride("_method"));
-app.use(express.urlencoded({extended:true}));
-app.engine("ejs",ejsMate);  
+app.use(express.urlencoded({ extended: true }));
+app.use(express.static(path.join(__dirname,"public")));
+
+const sessionConfig = {
+    resave:false,
+    saveUninitialized:true,
+    secret:"thisshouldbeabettersecret",
+    cookie:{
+        expires:Date.now() + 1000 * 60 * 60 * 24 * 7,
+        maxAge:1000 * 60 * 60 * 24 * 7,
+        httpOnly:true
+    }
+}
+app.use(session(sessionConfig));
+
+app.use((req,res,next) => {
+    res.locals.success= req.flash("success");
+    res.locals.error = req.flash("error");
+    next();
+})
+
+app.engine("ejs", ejsMate);
+
+
+
+/************************************
+ * MIDDLEWARE TO CHECK FOR ERRORS *
+ ************************************/
+const validateCampground = (req, res, next) => {
+
+
+    //Using Schema.validate And We need To Pass The Data which is to be validated and results 
+    //will be stored in the result var
+    const result = campgroundValidateSchema.validate(req.body);
+
+    //If there is error.details array then we need to use map function because details is array
+    //not the string so we iterate over every details array and we use message and call another
+    //method join which joins the strings and pass it to the ExpressError.
+    if (result.error.details) {
+        const msg = result.error.details.map(el => el.message).join(",");
+        throw new ExpressError(msg, 400);
+    }
+    else {
+        next();
+    }
+}
+
+
+/**************************************************************************
+ * ANOTHER MIDDLEWARE TO CHECK FOR ERRORS IN REVIEW BUT IT IS NOT WORKING *
+ **************************************************************************/
+const validateReview = (req, res, next) => {
+    const result = reviewSchema.validate(req.body);
+    if (result.error.details) {
+        const msg = result.error.details.map(el => el.message).join(",");
+        throw new ExpressError(msg, 400);
+    }
+    else {
+        next();
+    }
+
+
+}
+
+
 
 mongoose.connect("mongodb://localhost:27017/yelp-camp")
 
@@ -27,7 +98,7 @@ const db = mongoose.connection;
 
 /* This function will check for specific event when database is running and it will trigger
 the function when the event is happened. Like when error then the function is called... */
-db.on("error",function(err) {
+db.on("error", function (err) {
     console.error(`Error Connecting to Database: ${err}`)
 })
 
@@ -36,81 +107,46 @@ db.once("open", () => {
     console.log("Database Connected");
 })
 
-/*Deploying the Website Locally At Port 3000 */
-app.listen(3000,() => {
-    console.log("Started Server At Port 3000");
-})
 
+/**************************************************
+ * ROUTER OF THE CAMPGROUND FILE IN CAMPGROUND.JS *
+ **************************************************/
+app.use("/campgrounds", campgrounds);
+app.use("/campgrounds/:id/reviews",reviews);
 
-app.get("/",(req,res) => {
+app.get("/", (req, res) => {
     res.render("home");
 })
 
-/****************************************
- * ROUTE TO DISPLAY ALL THE CAMPGROUNDS *
- ****************************************/
- app.get("/campgrounds",async (req,res) => {
-    const campgrounds = await Campground.find({});
-    res.render("campgrounds/index",{campgrounds});
- })
 
- 
-/************************************
- * ROUTE TO CREATE A NEW CAMPGROUND *
- ************************************/
-app.get("/campgrounds/new",(req,res) => {
-    res.render("campgrounds/new");
+
+/******************************************************************************************************
+ * CHECKING ALL ROUTES WITH ANY ADDRESS AND IF THIS ROUTE IS CAUGHT THEN CALL MIDDLEWARE WITH ERROR *
+ ******************************************************************************************************/
+app.all('*', (req, res, next) => {
+    // res.send("404 Error...."); 
+    next(new ExpressError("Page Not Found", 404));
 })
 
-/************************************************************************************
- * ROUTE TO SAVE THE CAMPGROUNDS DETAILS WHICH ARE GOING TO CREATE A NEW CAMPGROUND *
- *         OBJECT AND SAVE IT TO DATABASE FROM THE PAGE CAMPGROUNDS/NEW.EJS         *
- ************************************************************************************/
-app.post("/campgrounds" ,async (req,res) => {
-    const campground = new Campground(req.body.campground);
-    await campground.save();
-    res.redirect(`campgrounds/${campground._id}`);
-})
+/*********************************************************************************************************
+ * MIDDLEWARE OF THE ERROR HANDLING WHICH WILL CALL RENDER WITH THE ERROR STATUS AND AND THE ERROR WHICH *
+ *                                              IS PASSED.                                               *
+ *********************************************************************************************************/
+app.use((err, req, res, next) => {
 
+    //Now we are setting the value of statusCode and that's ok but when we are setting the message
+    //default value so we are extracting the err and setting the value so its like go upwards 
+    //and then go downwards 
+    const { statusCode = 500 } = err;
+    if (!err.message) err.message = "Oh no Error Occured...";
+    res.status(statusCode).render("error", { err });
+    // res.status(statusCode).send(message);    
+    // res.send("Something Went Wrong. Please Try Again Later!!!");
 
-/*************************************************
- * ROUTE TO DISPLAY SINGLE CAMPGROUND VIA ITS ID *
- *************************************************/
-app.get("/campgrounds/:id",async (req,res) => {
-    const campground = await Campground.findById(req.params.id);
-    res.render("campgrounds/show",{ campground });
 })
 
 
-/************************************************
- * ROUTE TO EDIT A SINGLE CAMPGROUND VIA ITS ID *
- ************************************************/
-app.get("/campgrounds/:id/edit",async (req,res) => {
-    const campground = await Campground.findById(req.params.id);
-    res.render("campgrounds/edit",{campground});
+/*Deploying the Website Locally At Port 3000 */
+app.listen(3000, () => {
+    console.log("Started Server At Port 3000");
 })
-
-/*****************************************************************
- *              ROUTE TO SAVE THE EDITED CAMPGROUND              *
- *   THE RESULT WILL BE CAMPGROUNDS[TITLE],CAMPGROUNDS[LOCATION] *
- *****************************************************************/
-app.put("/campgrounds/:id",async (req,res) => {
-    const {id} = req.params;
-    /*TO REVISE THE TOPIC ... MEANS TO SPREAD THE OBJECT SO THE PASSED OBJECT WILL BE
-    CAMPGROUND[TITLE] AND CAMPGROUND[LOCATION] AND WE NEED TO UPDATE IT SO WE NEED
-    TO PASS THE WHOLE OBJECT OR THE PARAMETERS WHICH WE WANT TO UPDATE IT.*/
-    const campground = await Campground.findByIdAndUpdate(id,{...req.body.campground},{new:true});
-    res.redirect(`/campgrounds/${campground._id}`);  
-})
-
-
-/********************************
- * ROUTE TO DELETE A CAMPGROUND *
- ********************************/
-app.delete("/campgrounds/:id", async (req,res) => {
-    const {id} = req.params;
-    await Campground.findByIdAndDelete(id);
-    res.redirect("/campgrounds");
-})
-
-
